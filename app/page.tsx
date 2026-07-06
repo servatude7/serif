@@ -4,30 +4,39 @@ import { Navbar } from "@/components/navbar";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-background font-sans">
-      <Navbar />
+    <div className="flex min-h-screen flex-col bg-background font-sans relative">
+      <Navbar transparent />
       
       <main className="flex-1">
-        <section className="w-full py-24 md:py-32 lg:py-48 xl:py-56">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-8 text-center">
-              <div className="space-y-4 max-w-3xl">
-                <h1 className="font-serif text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-                  Where ideas take shape.
+        <section 
+          className="relative w-full min-h-[calc(100svh+6rem)] flex items-center justify-center bg-cover bg-fixed bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/background.jpg')" }}
+        >
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="container relative z-10 mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center space-y-12 text-center py-24 md:space-y-16">
+              <div className="max-w-3xl space-y-6 md:space-y-8">
+                <h1 className="font-sans text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+                  The AI-Powered Blogging Platform
                 </h1>
-                <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-2xl/relaxed">
-                  Serif is a modern publishing platform for thinkers, writers, and creators. 
-                  Share your stories with a beautiful, distraction-free reading experience.
+                <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl/relaxed lg:text-2xl/relaxed">
+                  Serif supercharges your writing with artificial intelligence. 
+                  Generate ideas, refine your prose, and publish faster than ever before.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 min-w-[200px] sm:min-w-0">
                 <Link href="/auth/sign-up">
-                  <Button size="lg" className="w-full sm:w-auto text-base h-12 px-8">
-                    Start writing
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto text-base h-12 px-8 bg-white hover:bg-white/90 shadow-sm focus-visible:ring-white/50"
+                  >
+                    <span className="bg-[url('/background.jpg')] bg-fixed bg-cover bg-center bg-clip-text text-transparent">
+                      Start writing with AI
+                    </span>
                   </Button>
                 </Link>
                 <Link href="/auth/login">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-12 px-8">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-12 px-8 bg-transparent text-white border-white hover:bg-white hover:text-black">
                     Read stories
                   </Button>
                 </Link>
