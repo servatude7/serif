@@ -9,7 +9,7 @@ export default function Home() {
       
       <main className="flex-1">
         <section 
-          className="relative w-full min-h-[calc(100svh+6rem)] flex items-center justify-center bg-cover bg-fixed bg-center bg-no-repeat"
+          className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-fixed bg-center bg-no-repeat"
           style={{ backgroundImage: "url('/background.jpg')" }}
         >
           <div className="absolute inset-0 bg-black/40" />
@@ -24,8 +24,8 @@ export default function Home() {
                   Generate ideas, refine your prose, and publish faster than ever before.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 min-w-[200px] sm:min-w-0">
-                <Link href="/auth/sign-up">
+              <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4 min-w-[200px] sm:min-w-0">
+                <Link href="/auth/sign-up" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto text-base h-12 px-8 bg-white hover:bg-white/90 shadow-sm focus-visible:ring-white/50"
@@ -35,7 +35,7 @@ export default function Home() {
                     </span>
                   </Button>
                 </Link>
-                <Link href="/auth/login">
+                <Link href="/auth/login" className="w-full sm:w-auto">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-12 px-8 bg-transparent text-white border-white hover:bg-white hover:text-black">
                     Read stories
                   </Button>
