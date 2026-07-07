@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      blogs: {
+        Row: {
+          id: string
+          title: string
+          summary: string | null
+          body: Json | null
+          image: string | null
+          author_id: string
+          status: Database["public"]["Enums"]["blog_status"]
+          read_time: number | null
+          slug: string
+          published_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          summary?: string | null
+          body?: Json | null
+          image?: string | null
+          author_id: string
+          status?: Database["public"]["Enums"]["blog_status"]
+          read_time?: number | null
+          slug: string
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          summary?: string | null
+          body?: Json | null
+          image?: string | null
+          author_id?: string
+          status?: Database["public"]["Enums"]["blog_status"]
+          read_time?: number | null
+          slug?: string
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blogs_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -46,7 +99,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      blog_status: "draft" | "published"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -173,6 +226,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      blog_status: ["draft", "published"] as const,
+    },
   },
 } as const
