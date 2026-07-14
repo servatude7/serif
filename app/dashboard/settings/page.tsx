@@ -1,7 +1,7 @@
 import { Bell, Shield, User } from "lucide-react"
 import { redirect } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
+import { ProfileForm } from "@/components/settings/profile-form"
 import {
   Card,
   CardContent,
@@ -9,8 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { getProfile } from "@/lib/profile"
 import { createClient } from "@/lib/supabase/server"
 
@@ -44,20 +42,11 @@ export default async function DashboardSettingsPage() {
               Update the public details readers see when you publish.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="display-name">Display name</Label>
-              <Input
-                id="display-name"
-                placeholder="Your name"
-                defaultValue={profile?.first_name ?? ""}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="publication-name">Publication name</Label>
-              <Input id="publication-name" placeholder="Serif Journal" />
-            </div>
-            <Button>Save profile</Button>
+          <CardContent>
+            <ProfileForm
+              firstName={profile?.first_name ?? null}
+              avatarUrl={profile?.avatar_url ?? null}
+            />
           </CardContent>
         </Card>
 

@@ -21,7 +21,10 @@ export default async function DashboardLayout({
   const userName = getDisplayName(profile?.first_name)
 
   return (
-    <DashboardShell userName={userName}>
+    <DashboardShell
+      userName={userName}
+      avatarUrl={profile?.avatar_url ?? null}
+    >
       {children}
     </DashboardShell>
   )

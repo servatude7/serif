@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { CalendarDays, Clock, FileText, Pencil, Plus } from 'lucide-react'
 
 import { getBlogs } from '@/lib/actions/blog'
+import { AuthorBadge } from '@/components/blog/author-badge'
 import { DeleteBlogButton } from '@/components/blog/delete-blog-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -110,10 +111,11 @@ export default async function DashboardBlogsPage() {
                           {post.read_time} min read
                         </span>
                       )}
-                      {post.profiles?.first_name && (
-                        <span className="text-muted-foreground">
-                          by {post.profiles.first_name}
-                        </span>
+                      {post.profiles && (
+                        <AuthorBadge
+                          firstName={post.profiles.first_name}
+                          avatarUrl={post.profiles.avatar_url}
+                        />
                       )}
                     </div>
                   </div>

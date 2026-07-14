@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { LogOut, Menu, PenLine } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -35,9 +35,14 @@ import { getInitialsFromName } from "@/lib/profile"
 interface DashboardShellProps {
   children: React.ReactNode
   userName?: string
+  avatarUrl?: string | null
 }
 
-export function DashboardShell({ children, userName }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  userName,
+  avatarUrl,
+}: DashboardShellProps) {
   return (
     <SidebarProvider>
       <Sidebar>
@@ -53,12 +58,12 @@ export function DashboardShell({ children, userName }: DashboardShellProps) {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <UserMenu userName={userName} />
+          <UserMenu userName={userName} avatarUrl={avatarUrl} />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
-          <MobileDashboardMenu userName={userName} />
+          <MobileDashboardMenu userName={userName} avatarUrl={avatarUrl} />
           <div className="flex flex-1 items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Serif Dashboard</p>
@@ -87,7 +92,13 @@ function BrandLink() {
   )
 }
 
-function MobileDashboardMenu({ userName }: { userName?: string }) {
+function MobileDashboardMenu({
+  userName,
+  avatarUrl,
+}: {
+  userName?: string
+  avatarUrl?: string | null
+}) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -112,7 +123,7 @@ function MobileDashboardMenu({ userName }: { userName?: string }) {
             </SidebarGroup>
           </div>
           <div className="mt-auto border-t p-3">
-            <UserMenu userName={userName} />
+            <UserMenu userName={userName} avatarUrl={avatarUrl} />
           </div>
         </div>
       </SheetContent>
@@ -120,7 +131,13 @@ function MobileDashboardMenu({ userName }: { userName?: string }) {
   )
 }
 
-function UserMenu({ userName }: { userName?: string }) {
+function UserMenu({
+  userName,
+  avatarUrl,
+}: {
+  userName?: string
+  avatarUrl?: string | null
+}) {
   const router = useRouter()
   const initials = getInitialsFromName(userName)
 
@@ -136,6 +153,9 @@ function UserMenu({ userName }: { userName?: string }) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-auto w-full justify-start gap-2 px-2 py-2">
           <Avatar size="sm">
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt={userName ?? "Account"} />
+            ) : null}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <span className="min-w-0 flex-1 truncate text-left text-sm">{userName ?? "Account"}</span>
