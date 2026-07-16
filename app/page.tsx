@@ -35,7 +35,7 @@ export default function Home() {
                     </span>
                   </Button>
                 </Link>
-                <Link href="/auth/login" className="w-full sm:w-auto">
+                <Link href="/blogs" className="w-full sm:w-auto">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-12 px-8 bg-transparent text-white border-white hover:bg-white hover:text-black">
                     Read stories
                   </Button>

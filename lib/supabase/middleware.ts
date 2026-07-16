@@ -40,6 +40,9 @@ export async function updateSession(request: NextRequest) {
 
   const isPublicRoute =
     request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname === '/robots.txt' ||
+    request.nextUrl.pathname === '/sitemap.xml' ||
+    request.nextUrl.pathname.startsWith('/blogs') ||
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/auth')
 

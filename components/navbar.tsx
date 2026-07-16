@@ -45,7 +45,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
           <Link href="#" className={cn("text-sm font-medium transition-colors hover:text-primary", transparent ? "text-white/80 hover:text-white" : "text-foreground")}>
             Pricing
           </Link>
-          <Link href="#" className={cn("text-sm font-medium transition-colors hover:text-primary", transparent ? "text-white/80 hover:text-white" : "text-foreground")}>
+          <Link href="/blogs" className={cn("text-sm font-medium transition-colors hover:text-primary", transparent ? "text-white/80 hover:text-white" : "text-foreground")}>
             Blog
           </Link>
         </nav>
@@ -77,7 +77,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
                   <Link href="#" className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground hover:text-foreground">
                     Pricing
                   </Link>
-                  <Link href="#" className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground hover:text-foreground">
+                  <Link href="/blogs" className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground hover:text-foreground">
                     Blog
                   </Link>
                 </div>

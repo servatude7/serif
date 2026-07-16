@@ -73,6 +73,19 @@ function computeReadTime(body: JSONContent | null): number {
 // Queries
 // ---------------------------------------------------------------------------
 
+export async function getPublishedBlogs(): Promise<BlogWithAuthor[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('blogs')
+    .select('*, profiles(first_name, avatar_url)')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as BlogWithAuthor[]
+}
+
 export async function getBlogs(): Promise<BlogWithAuthor[]> {
   const supabase = await createClient()
   const {
@@ -102,6 +115,19 @@ export async function getBlog(id: string): Promise<BlogWithAuthor | null> {
     .select('*, profiles(first_name, avatar_url)')
     .eq('id', id)
     .eq('author_id', user.id)
+    .single()
+
+  if (error) return null
+  return data as BlogWithAuthor
+}
+
+export async function getBlogBySlug(slug: string): Promise<BlogWithAuthor | null> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('blogs')
+    .select('*, profiles(first_name, avatar_url)')
+    .eq('slug', slug)
     .single()
 
   if (error) return null
@@ -149,6 +175,7 @@ export async function createBlog(formData: FormData): Promise<void> {
   if (error) throw new Error(error.message)
 
   revalidatePath('/dashboard/blogs')
+  revalidatePath('/blogs')
   redirect(`/dashboard/blogs/${data.id}/edit`)
 }
 
@@ -194,6 +221,9 @@ export async function updateBlog(id: string, formData: FormData): Promise<void> 
 
   revalidatePath('/dashboard/blogs')
   revalidatePath(`/dashboard/blogs/${id}/edit`)
+  revalidatePath('/blogs')
+  if (existing?.slug) revalidatePath(`/blogs/${existing.slug}`)
+  revalidatePath(`/blogs/${slug}`)
 }
 
 export async function deleteBlog(id: string): Promise<void> {
@@ -225,6 +255,8 @@ export async function deleteBlog(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 
   revalidatePath('/dashboard/blogs')
+  revalidatePath('/blogs')
+  if (blog?.slug) revalidatePath(`/blogs/${blog.slug}`)
 }
 
 export async function uploadBlogImage(formData: FormData): Promise<string> {

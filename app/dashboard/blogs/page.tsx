@@ -83,7 +83,9 @@ export default async function DashboardBlogsPage() {
                   )}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate font-medium">{post.title}</h3>
+                      <Link href={`/blogs/${post.slug}`} className="hover:underline">
+                        <h3 className="truncate font-medium">{post.title}</h3>
+                      </Link>
                       <Badge
                         variant={
                           post.status === 'published' ? 'default' : 'secondary'
