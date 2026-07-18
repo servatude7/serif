@@ -21,8 +21,35 @@ export default async function DashboardHomePage() {
     redirect("/auth/login")
   }
 
-  const profile = await getProfile(supabase, data.claims.sub)
+  const userId = data.claims.sub
+  const profile = await getProfile(supabase, userId)
   const firstName = profile?.first_name?.trim()
+  const [totalResult, draftResult, publishedResult] = await Promise.all([
+    supabase
+      .from("blogs")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId),
+    supabase
+      .from("blogs")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId)
+      .eq("status", "draft"),
+    supabase
+      .from("blogs")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId)
+      .eq("status", "published"),
+  ])
+
+  const countError =
+    totalResult.error ?? draftResult.error ?? publishedResult.error
+  if (countError) {
+    throw new Error(`Unable to load blog counts: ${countError.message}`)
+  }
+
+  const totalPosts = totalResult.count ?? 0
+  const draftPosts = draftResult.count ?? 0
+  const publishedPosts = publishedResult.count ?? 0
 
   return (
     <div className="space-y-6">
@@ -47,28 +74,40 @@ export default async function DashboardHomePage() {
         <Card>
           <CardHeader>
             <CardDescription>Total posts</CardDescription>
-            <CardTitle className="text-3xl">0</CardTitle>
+            <CardTitle className="text-3xl">{totalPosts}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Create your first blog post to start publishing.</p>
+            <p className="text-sm text-muted-foreground">
+              {totalPosts === 0
+                ? "Create your first blog post to start publishing."
+                : `${totalPosts} post${totalPosts === 1 ? "" : "s"} in your library.`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Drafts</CardDescription>
-            <CardTitle className="text-3xl">0</CardTitle>
+            <CardTitle className="text-3xl">{draftPosts}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Draft tracking will appear here as posts are added.</p>
+            <p className="text-sm text-muted-foreground">
+              {draftPosts === 0
+                ? "No drafts waiting for review."
+                : `${draftPosts} draft${draftPosts === 1 ? "" : "s"} waiting for review.`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Published</CardDescription>
-            <CardTitle className="text-3xl">0</CardTitle>
+            <CardTitle className="text-3xl">{publishedPosts}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Published post metrics will show up in this space.</p>
+            <p className="text-sm text-muted-foreground">
+              {publishedPosts === 0
+                ? "No published posts yet."
+                : `${publishedPosts} post${publishedPosts === 1 ? "" : "s"} live.`}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +124,7 @@ export default async function DashboardHomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Start by adding blog storage and editor flows, then connect the counts above to real post data.</p>
+            <p>Draft, review, and publish posts from one focused workspace.</p>
             <p>The shell is ready for authenticated blog management without exposing dashboard routes publicly.</p>
           </CardContent>
         </Card>

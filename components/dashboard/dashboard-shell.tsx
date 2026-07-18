@@ -70,7 +70,7 @@ export function DashboardShell({
               <h1 className="text-lg font-semibold tracking-tight">Manage your blog</h1>
             </div>
             <Button asChild className="hidden sm:inline-flex">
-              <Link href="/dashboard/blogs">
+              <Link href="/dashboard/blogs/new">
                 <PenLine />
                 New post
               </Link>
