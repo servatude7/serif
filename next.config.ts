@@ -5,6 +5,12 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   : undefined
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Allow blog cover images up to 5 MB plus multipart form overhead.
+      bodySizeLimit: '6mb',
+    },
+  },
   images: {
     remotePatterns: supabaseHostname
       ? [

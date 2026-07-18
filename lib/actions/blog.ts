@@ -1,9 +1,18 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { JSONContent } from '@tiptap/react'
+import type { JSONContent } from '@tiptap/react'
 
+import {
+  computeReadTime,
+  createBlogRecord,
+  slugify,
+} from '@/lib/blog-mutations'
+import {
+  isSupportedBlogImageType,
+  MAX_BLOG_IMAGE_SIZE,
+  MAX_BLOG_IMAGE_SIZE_LABEL,
+} from '@/lib/blog-image'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/database.types'
 
@@ -14,19 +23,6 @@ export type BlogWithAuthor = Database['public']['Tables']['blogs']['Row'] & {
     first_name: string | null
     avatar_url: string | null
   } | null
-}
-
-// ---------------------------------------------------------------------------
-// Slug helpers
-// ---------------------------------------------------------------------------
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/[\s-]+/g, '-')
-    .replace(/^-|-$/g, '')
 }
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
@@ -50,23 +46,6 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
     attempt++
     slug = `${base}-${attempt}`
   }
-}
-
-// ---------------------------------------------------------------------------
-// Read-time helper
-// ---------------------------------------------------------------------------
-
-function computeReadTime(body: JSONContent | null): number {
-  if (!body) return 1
-
-  function extractText(node: JSONContent): string {
-    if (node.text) return node.text
-    if (node.content) return node.content.map(extractText).join(' ')
-    return ''
-  }
-
-  const words = extractText(body).trim().split(/\s+/).filter(Boolean).length
-  return Math.max(1, Math.round(words / 200))
 }
 
 // ---------------------------------------------------------------------------
@@ -138,45 +117,34 @@ export async function getBlogBySlug(slug: string): Promise<BlogWithAuthor | null
 // Mutations
 // ---------------------------------------------------------------------------
 
-export async function createBlog(formData: FormData): Promise<void> {
+export async function createBlog(formData: FormData): Promise<{ id: string }> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
 
-  const title = formData.get('title') as string
+  const title = String(formData.get('title') ?? '').trim()
+  if (!title) throw new Error('Title is required')
+
   const summary = (formData.get('summary') as string) || null
   const bodyRaw = formData.get('body') as string
   const body: JSONContent | null = bodyRaw ? JSON.parse(bodyRaw) : null
   const image = (formData.get('image') as string) || null
-  const status = (formData.get('status') as BlogStatus) || 'draft'
+  const status: BlogStatus =
+    formData.get('status') === 'published' ? 'published' : 'draft'
 
-  const slug = await uniqueSlug(slugify(title))
-  const read_time = computeReadTime(body)
-  const published_at = status === 'published' ? new Date().toISOString() : null
-
-  const { data, error } = await supabase
-    .from('blogs')
-    .insert({
-      title,
-      summary,
-      body,
-      image,
-      author_id: user.id,
-      status,
-      read_time,
-      slug,
-      published_at,
-    })
-    .select('id')
-    .single()
-
-  if (error) throw new Error(error.message)
+  const { id } = await createBlogRecord(supabase, user.id, {
+    title,
+    summary,
+    body,
+    image,
+    status,
+  })
 
   revalidatePath('/dashboard/blogs')
   revalidatePath('/blogs')
-  redirect(`/dashboard/blogs/${data.id}/edit`)
+  return { id }
 }
 
 export async function updateBlog(id: string, formData: FormData): Promise<void> {
@@ -266,15 +234,33 @@ export async function uploadBlogImage(formData: FormData): Promise<string> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
 
-  const file = formData.get('file') as File
-  if (!file || file.size === 0) throw new Error('No file provided')
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('No file provided')
+  }
+  if (!isSupportedBlogImageType(file.type)) {
+    throw new Error('Choose a JPEG, PNG, WebP, or GIF image')
+  }
+  if (file.size > MAX_BLOG_IMAGE_SIZE) {
+    throw new Error(`Image must be ${MAX_BLOG_IMAGE_SIZE_LABEL} or smaller`)
+  }
 
-  const ext = file.name.split('.').pop() ?? 'jpg'
+  const extensions = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  } as const
+  const ext = extensions[file.type]
   const path = `${user.id}/${crypto.randomUUID()}.${ext}`
 
   const { error } = await supabase.storage
     .from('blog-images')
-    .upload(path, file, { upsert: false })
+    .upload(path, file, {
+      cacheControl: '31536000',
+      contentType: file.type,
+      upsert: false,
+    })
 
   if (error) throw new Error(error.message)
 
