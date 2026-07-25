@@ -10,6 +10,7 @@ import {
 } from '@/lib/ai/blog-generation'
 import { createBlogRecord } from '@/lib/blog-mutations'
 import { createClient } from '@/lib/supabase/server'
+import { isProUser } from '@/lib/subscription'
 
 export type CreateAiBlogResult =
   | { success: true; id: string }
@@ -25,6 +26,13 @@ export async function createBlogWithAI(
 
   if (!user) {
     return { success: false, error: 'You must be signed in to generate a post.' }
+  }
+
+  if (!(await isProUser(supabase, user.id))) {
+    return {
+      success: false,
+      error: 'AI blog generation is a Pro feature. Upgrade to unlock it.',
+    }
   }
 
   const parsed = blogGenerationInputSchema.safeParse({

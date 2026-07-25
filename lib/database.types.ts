@@ -73,6 +73,8 @@ export type Database = {
           created_at: string
           first_name: string | null
           id: string
+          stripe_customer_id: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"] | null
           updated_at: string
         }
         Insert: {
@@ -80,6 +82,8 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id: string
+          stripe_customer_id?: string | null
+          subscription_status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
         }
         Update: {
@@ -87,9 +91,120 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id?: string
+          stripe_customer_id?: string | null
+          subscription_status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          stripe_price_id: string
+          plan: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          current_period_start: string | null
+          current_period_end: string | null
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          stripe_price_id: string
+          plan?: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          stripe_price_id?: string
+          plan?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      transactions: {
+        Row: {
+          id: string
+          user_id: string | null
+          stripe_event_id: string
+          stripe_event_type: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          stripe_invoice_id: string | null
+          amount_total: number | null
+          currency: string | null
+          status: string | null
+          payload: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          stripe_event_id: string
+          stripe_event_type: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_invoice_id?: string | null
+          amount_total?: number | null
+          currency?: string | null
+          status?: string | null
+          payload: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          stripe_event_id?: string
+          stripe_event_type?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_invoice_id?: string | null
+          amount_total?: number | null
+          currency?: string | null
+          status?: string | null
+          payload?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -100,6 +215,15 @@ export type Database = {
     }
     Enums: {
       blog_status: "draft" | "published"
+      subscription_status:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
+        | "incomplete"
+        | "incomplete_expired"
+        | "paused"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -228,6 +352,16 @@ export const Constants = {
   public: {
     Enums: {
       blog_status: ["draft", "published"] as const,
+      subscription_status: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "unpaid",
+        "incomplete",
+        "incomplete_expired",
+        "paused",
+      ] as const,
     },
   },
 } as const

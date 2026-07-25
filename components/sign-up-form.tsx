@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+  const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [repeatPassword, setRepeatPassword] = useState('')
@@ -43,9 +44,17 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { first_name: firstName },
         },
       })
       if (error) throw error
+
+      fetch('/api/loops/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, firstName }),
+      }).catch((err) => console.error('Loops subscribe failed', err))
+
       router.push('/auth/sign-up-success')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
@@ -64,6 +73,17 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="first-name">First name</Label>
+                <Input
+                  id="first-name"
+                  type="text"
+                  placeholder="Jane"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

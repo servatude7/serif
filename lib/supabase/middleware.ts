@@ -43,8 +43,15 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === '/robots.txt' ||
     request.nextUrl.pathname === '/sitemap.xml' ||
     request.nextUrl.pathname.startsWith('/blogs') ||
+    request.nextUrl.pathname.startsWith('/pricing') ||
     request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/auth')
+    request.nextUrl.pathname.startsWith('/auth') ||
+    // Route handlers under /api are request/response endpoints, not pages.
+    // Redirecting a fetch() call to the /auth/login HTML page breaks callers
+    // (e.g. the sign-up form's Loops subscribe request, made before the user
+    // has a session). Route handlers that need auth should check
+    // `supabase.auth.getClaims()`/`getUser()` themselves and return a 401.
+    request.nextUrl.pathname.startsWith('/api/')
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
