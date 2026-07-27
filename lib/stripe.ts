@@ -6,7 +6,7 @@ import Stripe from 'stripe'
  * The real `Stripe` instance is constructed lazily on first property
  * access (via the Proxy below) rather than at module load time. Next.js
  * imports route modules while collecting build metadata even for routes
- * that never execute at build time (e.g. this webhook), and the Stripe SDK
+ * that never execute at build time, and the Stripe SDK
  * throws synchronously if constructed without an API key — eagerly
  * instantiating here would break `next build` whenever
  * `STRIPE_SECRET_KEY` isn't set. Call sites that actually talk to Stripe
