@@ -1,17 +1,71 @@
-import { headers } from 'next/headers'
-import { NextResponse } from 'next/server'
-import type Stripe from 'stripe'
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
-import { stripe } from '@/lib/stripe'
-import { createAdminClient } from '@/lib/supabase/admin'
-import type { Database } from '@/lib/database.types'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import Stripe from 'stripe'
 
-type AdminClient = ReturnType<typeof createAdminClient>
-type SubscriptionStatus = Database['public']['Enums']['subscription_status']
+import type { Database, Json, SubscriptionStatus } from './database.types.ts'
+
+type AdminClient = SupabaseClient<Database>
+
+function requireEnv(name: string): string {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`${name} is not set`)
+  return value
+}
+
+// Signature verification goes through the Web Crypto API, which is async in
+// Deno — hence `constructEventAsync` with an explicit crypto provider below.
+const cryptoProvider = Stripe.createSubtleCryptoProvider()
+
+// Both clients are built on first use rather than at module load. A missing
+// secret then fails a single request with a readable log line, instead of
+// killing the isolate at boot and returning an opaque WORKER_ERROR.
+let stripeClient: Stripe | null = null
+let adminClient: AdminClient | null = null
+
+function getStripe(): Stripe {
+  if (!stripeClient) {
+    stripeClient = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
+      apiVersion: '2026-06-24.dahlia',
+      appInfo: { name: 'Serif' },
+      // The Node http module isn't available in the edge runtime.
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+  }
+  return stripeClient
+}
+
+/**
+ * Service-role client. It bypasses Row Level Security and the column-level
+ * grants on `profiles`, which is exactly what this function needs — but only
+ * after the Stripe signature has been verified.
+ */
+function getAdmin(): AdminClient {
+  if (!adminClient) {
+    adminClient = createClient<Database>(
+      requireEnv('SUPABASE_URL'),
+      requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+  }
+  return adminClient
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 /** Stripe objects sometimes return an expanded object, sometimes just an id. */
 function extractId(
@@ -46,7 +100,8 @@ function extractTransactionFields(object: unknown) {
   return {
     stripeCustomerId: extractId(obj.customer),
     stripeSubscriptionId: extractId(obj.subscription),
-    stripeInvoiceId: typeof obj.id === 'string' && obj.id.startsWith('in_') ? obj.id : null,
+    stripeInvoiceId:
+      typeof obj.id === 'string' && obj.id.startsWith('in_') ? obj.id : null,
     amountTotal: obj.amount_total ?? obj.amount_paid ?? null,
     currency: obj.currency ?? null,
     status: obj.status ?? null,
@@ -54,14 +109,17 @@ function extractTransactionFields(object: unknown) {
 }
 
 /** Resolves the Supabase user id for a Stripe customer, preferring metadata. */
-async function resolveUserId(
-  admin: AdminClient,
-  { metadataUserId, customerId }: { metadataUserId?: string | null; customerId?: string | null }
-): Promise<string | null> {
+async function resolveUserId({
+  metadataUserId,
+  customerId,
+}: {
+  metadataUserId?: string | null
+  customerId?: string | null
+}): Promise<string | null> {
   if (metadataUserId) return metadataUserId
   if (!customerId) return null
 
-  const { data } = await admin
+  const { data } = await getAdmin()
     .from('profiles')
     .select('id')
     .eq('stripe_customer_id', customerId)
@@ -72,13 +130,14 @@ async function resolveUserId(
 
 /** Upserts the subscriptions row and syncs the denormalized profile status. */
 async function syncSubscription(
-  admin: AdminClient,
   subscription: Stripe.Subscription,
   userId: string
 ) {
   const item = subscription.items.data[0]
   const customerId = extractId(subscription.customer)
   if (!customerId) return
+
+  const admin = getAdmin()
 
   const { error: subscriptionError } = await admin.from('subscriptions').upsert(
     {
@@ -118,7 +177,6 @@ async function syncSubscription(
 // ---------------------------------------------------------------------------
 
 async function handleCheckoutSessionCompleted(
-  admin: AdminClient,
   session: Stripe.Checkout.Session
 ) {
   if (session.mode !== 'subscription') return
@@ -126,8 +184,9 @@ async function handleCheckoutSessionCompleted(
   const subscriptionId = extractId(session.subscription)
   if (!subscriptionId) return
 
-  const userId = await resolveUserId(admin, {
-    metadataUserId: session.metadata?.supabase_user_id ?? session.client_reference_id,
+  const userId = await resolveUserId({
+    metadataUserId:
+      session.metadata?.supabase_user_id ?? session.client_reference_id,
     customerId: extractId(session.customer),
   })
   if (!userId) {
@@ -137,15 +196,12 @@ async function handleCheckoutSessionCompleted(
     return
   }
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-  await syncSubscription(admin, subscription, userId)
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
+  await syncSubscription(subscription, userId)
 }
 
-async function handleSubscriptionUpsert(
-  admin: AdminClient,
-  subscription: Stripe.Subscription
-) {
-  const userId = await resolveUserId(admin, {
+async function handleSubscriptionUpsert(subscription: Stripe.Subscription) {
+  const userId = await resolveUserId({
     metadataUserId: subscription.metadata?.supabase_user_id,
     customerId: extractId(subscription.customer),
   })
@@ -156,39 +212,46 @@ async function handleSubscriptionUpsert(
     return
   }
 
-  await syncSubscription(admin, subscription, userId)
+  await syncSubscription(subscription, userId)
 }
 
 // ---------------------------------------------------------------------------
-// Route handler
+// Request handler
 // ---------------------------------------------------------------------------
 
-export async function POST(request: Request) {
+async function handleWebhook(request: Request): Promise<Response> {
   const body = await request.text()
-  const signature = (await headers()).get('stripe-signature')
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  const signature = request.headers.get('stripe-signature')
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
   if (!signature || !webhookSecret) {
-    console.error('Stripe webhook missing signature header or STRIPE_WEBHOOK_SECRET')
-    return NextResponse.json({ error: 'Webhook not configured' }, { status: 400 })
+    console.error(
+      'Stripe webhook missing signature header or STRIPE_WEBHOOK_SECRET'
+    )
+    return json({ error: 'Webhook not configured' }, 400)
   }
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    event = await getStripe().webhooks.constructEventAsync(
+      body,
+      signature,
+      webhookSecret,
+      undefined,
+      cryptoProvider
+    )
   } catch (error) {
     console.error('Stripe webhook signature verification failed', error)
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    return json({ error: 'Invalid signature' }, 400)
   }
 
-  const admin = createAdminClient()
   const fields = extractTransactionFields(event.data.object)
-  const userId = await resolveUserId(admin, { customerId: fields.stripeCustomerId })
+  const userId = await resolveUserId({ customerId: fields.stripeCustomerId })
 
   // Log every event for auditing. The unique constraint on stripe_event_id
   // makes this idempotent: if Stripe retries a delivery, the insert fails
   // with a unique violation and we skip reprocessing below.
-  const { error: insertError } = await admin.from('transactions').insert({
+  const { error: insertError } = await getAdmin().from('transactions').insert({
     user_id: userId,
     stripe_event_id: event.id,
     stripe_event_type: event.type,
@@ -198,13 +261,13 @@ export async function POST(request: Request) {
     amount_total: fields.amountTotal,
     currency: fields.currency,
     status: fields.status,
-    payload: event as unknown as Database['public']['Tables']['transactions']['Insert']['payload'],
+    payload: event as unknown as Json,
   })
 
   if (insertError) {
     if (insertError.code === '23505') {
       // Already processed this event id.
-      return NextResponse.json({ received: true })
+      return json({ received: true })
     }
     console.error('Failed to log Stripe webhook event', insertError)
   }
@@ -212,20 +275,35 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(admin, event.data.object)
+        await handleCheckoutSessionCompleted(event.data.object)
         break
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
-        await handleSubscriptionUpsert(admin, event.data.object)
+        await handleSubscriptionUpsert(event.data.object)
         break
       default:
         break
     }
   } catch (error) {
     console.error(`Failed to handle Stripe event ${event.type}`, error)
-    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
+    return json({ error: 'Webhook handler failed' }, 500)
   }
 
-  return NextResponse.json({ received: true })
+  return json({ received: true })
 }
+
+Deno.serve(async (request) => {
+  if (request.method !== 'POST') {
+    return json({ error: 'Method not allowed' }, 405)
+  }
+
+  try {
+    return await handleWebhook(request)
+  } catch (error) {
+    // Missing secrets and other unexpected failures land here. Returning 500
+    // tells Stripe to retry, which is what we want once the cause is fixed.
+    console.error('Stripe webhook failed', error)
+    return json({ error: 'Webhook handler failed' }, 500)
+  }
+})
