@@ -16,45 +16,45 @@ export type Database = {
     Tables: {
       blogs: {
         Row: {
-          id: string
-          title: string
-          summary: string | null
-          body: Json | null
-          image: string | null
           author_id: string
-          status: Database["public"]["Enums"]["blog_status"]
+          body: Json | null
+          created_at: string
+          id: string
+          image: string | null
+          published_at: string | null
           read_time: number | null
           slug: string
-          published_at: string | null
-          created_at: string
+          status: Database["public"]["Enums"]["blog_status"]
+          summary: string | null
+          title: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          title: string
-          summary?: string | null
-          body?: Json | null
-          image?: string | null
           author_id: string
-          status?: Database["public"]["Enums"]["blog_status"]
+          body?: Json | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          published_at?: string | null
           read_time?: number | null
           slug: string
-          published_at?: string | null
-          created_at?: string
+          status?: Database["public"]["Enums"]["blog_status"]
+          summary?: string | null
+          title: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          title?: string
-          summary?: string | null
-          body?: Json | null
-          image?: string | null
           author_id?: string
-          status?: Database["public"]["Enums"]["blog_status"]
+          body?: Json | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          published_at?: string | null
           read_time?: number | null
           slug?: string
-          published_at?: string | null
-          created_at?: string
+          status?: Database["public"]["Enums"]["blog_status"]
+          summary?: string | null
+          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -64,7 +64,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       profiles: {
@@ -73,8 +73,11 @@ export type Database = {
           created_at: string
           first_name: string | null
           id: string
+          role: Database["public"]["Enums"]["user_role"]
           stripe_customer_id: string | null
-          subscription_status: Database["public"]["Enums"]["subscription_status"] | null
+          subscription_status:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
           updated_at: string
         }
         Insert: {
@@ -82,8 +85,11 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id: string
+          role?: Database["public"]["Enums"]["user_role"]
           stripe_customer_id?: string | null
-          subscription_status?: Database["public"]["Enums"]["subscription_status"] | null
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -91,57 +97,60 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           stripe_customer_id?: string | null
-          subscription_status?: Database["public"]["Enums"]["subscription_status"] | null
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
           updated_at?: string
         }
         Relationships: []
       }
       subscriptions: {
         Row: {
-          id: string
-          user_id: string
-          stripe_customer_id: string
-          stripe_subscription_id: string
-          stripe_price_id: string
-          plan: string
-          status: Database["public"]["Enums"]["subscription_status"]
-          current_period_start: string | null
-          current_period_end: string | null
           cancel_at_period_end: boolean
           canceled_at: string | null
           created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string
+          stripe_price_id: string
+          stripe_subscription_id: string
           updated_at: string
+          user_id: string
         }
         Insert: {
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           id?: string
-          user_id: string
-          stripe_customer_id: string
-          stripe_subscription_id: string
-          stripe_price_id: string
           plan?: string
           status: Database["public"]["Enums"]["subscription_status"]
-          current_period_start?: string | null
-          current_period_end?: string | null
-          cancel_at_period_end?: boolean
-          canceled_at?: string | null
-          created_at?: string
+          stripe_customer_id: string
+          stripe_price_id: string
+          stripe_subscription_id: string
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          stripe_customer_id?: string
-          stripe_subscription_id?: string
-          stripe_price_id?: string
-          plan?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
-          current_period_start?: string | null
-          current_period_end?: string | null
           cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string
+          stripe_price_id?: string
+          stripe_subscription_id?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -150,51 +159,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       transactions: {
         Row: {
+          amount_total: number | null
+          created_at: string
+          currency: string | null
           id: string
-          user_id: string | null
+          payload: Json
+          status: string | null
+          stripe_customer_id: string | null
           stripe_event_id: string
           stripe_event_type: string
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
           stripe_invoice_id: string | null
-          amount_total: number | null
-          currency: string | null
-          status: string | null
-          payload: Json
-          created_at: string
+          stripe_subscription_id: string | null
+          user_id: string | null
         }
         Insert: {
+          amount_total?: number | null
+          created_at?: string
+          currency?: string | null
           id?: string
-          user_id?: string | null
+          payload: Json
+          status?: string | null
+          stripe_customer_id?: string | null
           stripe_event_id: string
           stripe_event_type: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
           stripe_invoice_id?: string | null
-          amount_total?: number | null
-          currency?: string | null
-          status?: string | null
-          payload: Json
-          created_at?: string
+          stripe_subscription_id?: string | null
+          user_id?: string | null
         }
         Update: {
+          amount_total?: number | null
+          created_at?: string
+          currency?: string | null
           id?: string
-          user_id?: string | null
+          payload?: Json
+          status?: string | null
+          stripe_customer_id?: string | null
           stripe_event_id?: string
           stripe_event_type?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
           stripe_invoice_id?: string | null
-          amount_total?: number | null
-          currency?: string | null
-          status?: string | null
-          payload?: Json
-          created_at?: string
+          stripe_subscription_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -203,7 +212,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }
@@ -211,7 +220,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_list_user_emails: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+        }[]
+      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       blog_status: "draft" | "published"
@@ -224,6 +240,7 @@ export type Database = {
         | "incomplete"
         | "incomplete_expired"
         | "paused"
+      user_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -351,7 +368,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      blog_status: ["draft", "published"] as const,
+      blog_status: ["draft", "published"],
       subscription_status: [
         "active",
         "trialing",
@@ -361,7 +378,8 @@ export const Constants = {
         "incomplete",
         "incomplete_expired",
         "paused",
-      ] as const,
+      ],
+      user_role: ["admin", "user"],
     },
   },
 } as const

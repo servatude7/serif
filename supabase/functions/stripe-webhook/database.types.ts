@@ -24,6 +24,8 @@ export type SubscriptionStatus =
   | 'incomplete_expired'
   | 'paused'
 
+export type UserRole = 'admin' | 'user'
+
 export type Database = {
   public: {
     Tables: {
@@ -33,6 +35,7 @@ export type Database = {
           created_at: string
           first_name: string | null
           id: string
+          role: UserRole
           stripe_customer_id: string | null
           subscription_status: SubscriptionStatus | null
           updated_at: string
@@ -42,6 +45,7 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id: string
+          role?: UserRole
           stripe_customer_id?: string | null
           subscription_status?: SubscriptionStatus | null
           updated_at?: string
@@ -51,6 +55,7 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id?: string
+          role?: UserRole
           stripe_customer_id?: string | null
           subscription_status?: SubscriptionStatus | null
           updated_at?: string
@@ -159,6 +164,7 @@ export type Database = {
     }
     Enums: {
       subscription_status: SubscriptionStatus
+      user_role: UserRole
     }
     CompositeTypes: {
       [_ in never]: never

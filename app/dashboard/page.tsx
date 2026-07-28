@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { FileText, Settings, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -10,20 +9,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getProfile } from "@/lib/profile"
+import { requireUser } from "@/lib/auth/dal"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function DashboardHomePage() {
+  // Memoized by the DAL, so this reuses the layout's lookup rather than
+  // re-reading the session and profile.
+  const { userId, firstName: profileFirstName } = await requireUser()
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.getClaims()
-
-  if (error || !data?.claims?.sub) {
-    redirect("/auth/login")
-  }
-
-  const userId = data.claims.sub
-  const profile = await getProfile(supabase, userId)
-  const firstName = profile?.first_name?.trim()
+  const firstName = profileFirstName?.trim()
   const [totalResult, draftResult, publishedResult] = await Promise.all([
     supabase
       .from("blogs")
