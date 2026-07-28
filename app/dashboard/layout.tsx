@@ -1,29 +1,23 @@
 import type * as React from "react"
-import { redirect } from "next/navigation"
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { getDisplayName, getProfile } from "@/lib/profile"
-import { createClient } from "@/lib/supabase/server"
+import { requireUser } from "@/lib/auth/dal"
+import { getDisplayName } from "@/lib/profile"
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getClaims()
-
-  if (error || !data?.claims?.sub) {
-    redirect("/auth/login")
-  }
-
-  const profile = await getProfile(supabase, data.claims.sub)
-  const userName = getDisplayName(profile?.first_name)
+  // Also sends admins to /admin, so this layout is the single place that
+  // decides where each role lands after signing in.
+  const profile = await requireUser()
 
   return (
     <DashboardShell
-      userName={userName}
-      avatarUrl={profile?.avatar_url ?? null}
+      userName={getDisplayName(profile.firstName)}
+      userEmail={profile.email}
+      avatarUrl={profile.avatarUrl}
     >
       {children}
     </DashboardShell>

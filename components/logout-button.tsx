@@ -1,18 +1,21 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import type { ComponentProps } from 'react'
+import { LogOut } from 'lucide-react'
 
-import { createClient } from '@/lib/supabase/client'
+import { useSignOut } from '@/hooks/use-sign-out'
 import { Button } from '@/components/ui/button'
 
-export function LogoutButton() {
-  const router = useRouter()
+export function LogoutButton({
+  variant = 'outline',
+  ...props
+}: Omit<ComponentProps<typeof Button>, 'onClick'>) {
+  const signOut = useSignOut()
 
-  const logout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-  }
-
-  return <Button onClick={logout}>Logout</Button>
+  return (
+    <Button variant={variant} onClick={signOut} {...props}>
+      <LogOut />
+      Log out
+    </Button>
+  )
 }
