@@ -9,10 +9,10 @@ import { toast } from 'sonner'
 import { createBlog, updateBlog, uploadBlogImage } from '@/lib/actions/blog'
 import type { BlogWithAuthor } from '@/lib/actions/blog'
 import {
-  isSupportedBlogImageType,
-  MAX_BLOG_IMAGE_SIZE,
-  MAX_BLOG_IMAGE_SIZE_LABEL,
-} from '@/lib/blog-image'
+  isSupportedImageType,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_LABEL,
+} from '@/lib/storage'
 import dynamic from 'next/dynamic'
 
 const TiptapEditor = dynamic(
@@ -55,13 +55,13 @@ export function BlogForm({ blog }: BlogFormProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!isSupportedBlogImageType(file.type)) {
+    if (!isSupportedImageType(file.type)) {
       toast.error('Choose a JPEG, PNG, WebP, or GIF image')
       e.target.value = ''
       return
     }
-    if (file.size > MAX_BLOG_IMAGE_SIZE) {
-      toast.error(`Image must be ${MAX_BLOG_IMAGE_SIZE_LABEL} or smaller`)
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error(`Image must be ${MAX_IMAGE_SIZE_LABEL} or smaller`)
       e.target.value = ''
       return
     }
@@ -74,9 +74,8 @@ export function BlogForm({ blog }: BlogFormProps) {
       const url = await uploadBlogImage(fd)
       setImage(url)
       toast.success('Image uploaded')
-    } catch (err) {
+    } catch {
       toast.error('Image upload failed')
-      console.error(err)
     } finally {
       input.value = ''
       setUploading(false)
@@ -110,9 +109,8 @@ export function BlogForm({ blog }: BlogFormProps) {
           toast.success('Post created')
           router.push(`/dashboard/blogs/${id}/edit`)
         }
-      } catch (err) {
+      } catch {
         toast.error('Failed to save post')
-        console.error(err)
       }
     })
   }

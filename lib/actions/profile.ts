@@ -2,12 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 
+import {
+  getStoragePath,
+  IMAGE_TYPE_EXTENSIONS,
+  isSupabasePublicUrl,
+  isSupportedImageType,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_LABEL,
+} from '@/lib/storage'
 import { createClient } from '@/lib/supabase/server'
-
-function getStoragePath(url: string, bucket: string): string | null {
-  const match = url.match(new RegExp(`/object/public/${bucket}/(.+)`))
-  return match?.[1] ? decodeURIComponent(match[1]) : null
-}
 
 function revalidateProfilePaths() {
   revalidatePath('/dashboard/settings')
@@ -24,7 +27,13 @@ export async function updateProfile(formData: FormData): Promise<void> {
   if (!user) throw new Error('Unauthenticated')
 
   const firstName = (formData.get('first_name') as string)?.trim() || null
-  const avatarUrl = (formData.get('avatar_url') as string) || null
+
+  // The avatar is submitted as a plain URL field, so only URLs inside this
+  // project's `avatars` bucket are accepted.
+  const avatarUrl = (formData.get('avatar_url') as string)?.trim() || null
+  if (avatarUrl && !isSupabasePublicUrl(avatarUrl, 'avatars')) {
+    throw new Error('Avatar must be an uploaded image')
+  }
 
   const { error } = await supabase
     .from('profiles')
@@ -46,10 +55,16 @@ export async function uploadAvatar(formData: FormData): Promise<string> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
 
-  const file = formData.get('file') as File
-  if (!file || file.size === 0) throw new Error('No file provided')
-  if (!file.type.startsWith('image/')) throw new Error('File must be an image')
-  if (file.size > 5 * 1024 * 1024) throw new Error('Image must be under 5 MB')
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('No file provided')
+  }
+  if (!isSupportedImageType(file.type)) {
+    throw new Error('Choose a JPEG, PNG, WebP, or GIF image')
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`Image must be ${MAX_IMAGE_SIZE_LABEL} or smaller`)
+  }
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -64,12 +79,11 @@ export async function uploadAvatar(formData: FormData): Promise<string> {
     }
   }
 
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+  const path = `${user.id}/${crypto.randomUUID()}.${IMAGE_TYPE_EXTENSIONS[file.type]}`
 
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(path, file, { upsert: false })
+    .upload(path, file, { contentType: file.type, upsert: false })
 
   if (error) throw new Error(error.message)
 

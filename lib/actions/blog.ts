@@ -9,10 +9,13 @@ import {
   slugify,
 } from '@/lib/blog-mutations'
 import {
-  isSupportedBlogImageType,
-  MAX_BLOG_IMAGE_SIZE,
-  MAX_BLOG_IMAGE_SIZE_LABEL,
-} from '@/lib/blog-image'
+  getStoragePath,
+  IMAGE_TYPE_EXTENSIONS,
+  isSupabasePublicUrl,
+  isSupportedImageType,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_LABEL,
+} from '@/lib/storage'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/database.types'
 
@@ -23,6 +26,20 @@ export type BlogWithAuthor = Database['public']['Tables']['blogs']['Row'] & {
     first_name: string | null
     avatar_url: string | null
   } | null
+}
+
+/**
+ * Cover images are submitted as a plain URL field, so only URLs inside this
+ * project's `blog-images` bucket are accepted.
+ */
+function parseImageUrl(value: FormDataEntryValue | null): string | null {
+  const image = typeof value === 'string' ? value.trim() : ''
+  if (!image) return null
+  if (!isSupabasePublicUrl(image, 'blog-images')) {
+    throw new Error('Cover image must be an uploaded image')
+  }
+
+  return image
 }
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
@@ -51,19 +68,6 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
 // ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
-
-export async function getPublishedBlogs(): Promise<BlogWithAuthor[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('blogs')
-    .select('*, profiles(first_name, avatar_url)')
-    .eq('status', 'published')
-    .order('published_at', { ascending: false })
-
-  if (error) throw new Error(error.message)
-  return (data ?? []) as BlogWithAuthor[]
-}
 
 export async function getBlogs(): Promise<BlogWithAuthor[]> {
   const supabase = await createClient()
@@ -100,19 +104,6 @@ export async function getBlog(id: string): Promise<BlogWithAuthor | null> {
   return data as BlogWithAuthor
 }
 
-export async function getBlogBySlug(slug: string): Promise<BlogWithAuthor | null> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('blogs')
-    .select('*, profiles(first_name, avatar_url)')
-    .eq('slug', slug)
-    .single()
-
-  if (error) return null
-  return data as BlogWithAuthor
-}
-
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
@@ -130,7 +121,7 @@ export async function createBlog(formData: FormData): Promise<{ id: string }> {
   const summary = (formData.get('summary') as string) || null
   const bodyRaw = formData.get('body') as string
   const body: JSONContent | null = bodyRaw ? JSON.parse(bodyRaw) : null
-  const image = (formData.get('image') as string) || null
+  const image = parseImageUrl(formData.get('image'))
   const status: BlogStatus =
     formData.get('status') === 'published' ? 'published' : 'draft'
 
@@ -158,7 +149,7 @@ export async function updateBlog(id: string, formData: FormData): Promise<void> 
   const summary = (formData.get('summary') as string) || null
   const bodyRaw = formData.get('body') as string
   const body: JSONContent | null = bodyRaw ? JSON.parse(bodyRaw) : null
-  const image = (formData.get('image') as string) || null
+  const image = parseImageUrl(formData.get('image'))
   const status = (formData.get('status') as BlogStatus) || 'draft'
 
   const slug = await uniqueSlug(slugify(title), id)
@@ -203,15 +194,9 @@ export async function deleteBlog(id: string): Promise<void> {
 
   // Delete the cover image from storage if present
   const blog = await getBlog(id)
-  if (blog?.image) {
-    const url = new URL(blog.image)
-    // Storage path is everything after /object/public/blog-images/
-    const pathMatch = url.pathname.match(/\/object\/public\/blog-images\/(.+)/)
-    if (pathMatch?.[1]) {
-      await supabase.storage
-        .from('blog-images')
-        .remove([decodeURIComponent(pathMatch[1])])
-    }
+  const imagePath = blog?.image ? getStoragePath(blog.image, 'blog-images') : null
+  if (imagePath) {
+    await supabase.storage.from('blog-images').remove([imagePath])
   }
 
   const { error } = await supabase
@@ -238,21 +223,14 @@ export async function uploadBlogImage(formData: FormData): Promise<string> {
   if (!(file instanceof File) || file.size === 0) {
     throw new Error('No file provided')
   }
-  if (!isSupportedBlogImageType(file.type)) {
+  if (!isSupportedImageType(file.type)) {
     throw new Error('Choose a JPEG, PNG, WebP, or GIF image')
   }
-  if (file.size > MAX_BLOG_IMAGE_SIZE) {
-    throw new Error(`Image must be ${MAX_BLOG_IMAGE_SIZE_LABEL} or smaller`)
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`Image must be ${MAX_IMAGE_SIZE_LABEL} or smaller`)
   }
 
-  const extensions = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'image/gif': 'gif',
-  } as const
-  const ext = extensions[file.type]
-  const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+  const path = `${user.id}/${crypto.randomUUID()}.${IMAGE_TYPE_EXTENSIONS[file.type]}`
 
   const { error } = await supabase.storage
     .from('blog-images')

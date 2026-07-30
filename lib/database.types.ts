@@ -220,14 +220,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_list_user_emails: {
+      admin_list_users: {
         Args: never
         Returns: {
+          avatar_url: string
+          created_at: string
           email: string
+          first_name: string
           id: string
+          role: Database["public"]["Enums"]["user_role"]
+          stripe_customer_id: string
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_published_author: { Args: { profile_id: string }; Returns: boolean }
     }
     Enums: {
       blog_status: "draft" | "published"
