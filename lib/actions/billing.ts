@@ -35,7 +35,13 @@ export async function createCheckoutSession() {
     redirect('/dashboard')
   }
 
-  const { data: profile, error: profileError } = await supabase
+  // `stripe_customer_id` is not granted to `authenticated` (see
+  // 20260728134500_restrict_profile_reads.sql), so both the read and the write
+  // go through the service-role client, after `getUser()` established who the
+  // caller is.
+  const admin = createAdminClient()
+
+  const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('stripe_customer_id')
     .eq('id', user.id)
@@ -43,7 +49,6 @@ export async function createCheckoutSession() {
 
   if (profileError) throw new Error(profileError.message)
 
-  const admin = createAdminClient()
   let customerId = profile?.stripe_customer_id ?? null
 
   if (!customerId) {
@@ -53,9 +58,6 @@ export async function createCheckoutSession() {
     })
     customerId = customer.id
 
-    // `stripe_customer_id` is locked down to server-only writes (see
-    // 20260723090000_stripe_billing.sql), so the admin client is required
-    // here even though the caller only ever updates their own row.
     const { error: updateError } = await admin
       .from('profiles')
       .update({ stripe_customer_id: customerId })

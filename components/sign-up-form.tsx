@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
+import { subscribeCurrentUserToLoops } from '@/lib/actions/loops'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,7 +40,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -49,11 +50,12 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       })
       if (error) throw error
 
-      fetch('/api/loops/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, firstName }),
-      }).catch((err) => console.error('Loops subscribe failed', err))
+      // With email confirmations enabled there is no session yet and
+      // /auth/confirm handles the Loops sync. Without them, sign-up returns a
+      // session, so subscribe the (now authenticated) user here.
+      if (data.session) {
+        await subscribeCurrentUserToLoops()
+      }
 
       router.push('/auth/sign-up-success')
     } catch (error: unknown) {

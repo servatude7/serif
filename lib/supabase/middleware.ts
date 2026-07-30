@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import type { Database } from '@/lib/database.types'
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -8,7 +10,7 @@ export async function updateSession(request: NextRequest) {
 
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
@@ -38,25 +40,46 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
+  const { pathname } = request.nextUrl
+
   const isPublicRoute =
-    request.nextUrl.pathname === '/' ||
-    request.nextUrl.pathname === '/robots.txt' ||
-    request.nextUrl.pathname === '/sitemap.xml' ||
-    request.nextUrl.pathname.startsWith('/blogs') ||
-    request.nextUrl.pathname.startsWith('/pricing') ||
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/auth') ||
-    // Route handlers under /api are request/response endpoints, not pages.
-    // Redirecting a fetch() call to the /auth/login HTML page breaks callers
-    // (e.g. the sign-up form's Loops subscribe request, made before the user
-    // has a session). Route handlers that need auth should check
-    // `supabase.auth.getClaims()`/`getUser()` themselves and return a 401.
-    request.nextUrl.pathname.startsWith('/api/')
+    pathname === '/' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname.startsWith('/blogs') ||
+    pathname.startsWith('/pricing') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth')
 
   if (!user && !isPublicRoute) {
+    // Route handlers under /api are request/response endpoints, not pages, so
+    // they get a 401 instead of a redirect to the /auth/login HTML page, which
+    // a fetch() caller cannot do anything useful with.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)
+  }
+
+  // Authorization for /admin. `requireAdmin()` in app/admin/layout.tsx remains
+  // the authoritative check; this stops a non-admin at the edge and keeps any
+  // future route under /admin that skips the layout from being reachable. The
+  // extra round trip only happens on admin requests.
+  if (user?.sub && pathname.startsWith('/admin')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.sub)
+      .maybeSingle()
+
+    if (profile?.role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

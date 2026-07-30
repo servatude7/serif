@@ -80,32 +80,16 @@ const columns: AdminTableColumn<AdminUserRow>[] = [
 export default async function AdminUsersPage() {
   const supabase = await createClient()
 
-  const [profiles, emails] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select(
-        "id, first_name, avatar_url, role, subscription_status, stripe_customer_id, created_at"
-      )
-      .order("created_at", { ascending: false }),
-    // Emails live in auth.users; this RPC returns nothing for non-admins.
-    supabase.rpc("admin_list_user_emails"),
-  ])
+  // Emails live in auth.users and `stripe_customer_id` is not granted to
+  // `authenticated`, so both come from this RPC, which returns nothing for
+  // non-admins.
+  const { data, error } = await supabase.rpc("admin_list_users")
 
-  if (profiles.error) {
-    throw new Error(`Unable to load users: ${profiles.error.message}`)
-  }
-  if (emails.error) {
-    throw new Error(`Unable to load user emails: ${emails.error.message}`)
+  if (error) {
+    throw new Error(`Unable to load users: ${error.message}`)
   }
 
-  const emailById = new Map(
-    (emails.data ?? []).map((entry) => [entry.id, entry.email])
-  )
-
-  const rows: AdminUserRow[] = (profiles.data ?? []).map((profile) => ({
-    ...profile,
-    email: emailById.get(profile.id) ?? null,
-  }))
+  const rows: AdminUserRow[] = data ?? []
 
   return (
     <div className="space-y-6">

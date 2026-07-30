@@ -6,6 +6,11 @@ import { toast } from 'sonner'
 
 import { updateProfile, uploadAvatar } from '@/lib/actions/profile'
 import { getDisplayName, getInitialsFromName } from '@/lib/profile'
+import {
+  isSupportedImageType,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_LABEL,
+} from '@/lib/storage'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +35,17 @@ export function ProfileForm({ firstName, avatarUrl }: ProfileFormProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (!isSupportedImageType(file.type)) {
+      toast.error('Choose a JPEG, PNG, WebP, or GIF image')
+      e.target.value = ''
+      return
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error(`Image must be ${MAX_IMAGE_SIZE_LABEL} or smaller`)
+      e.target.value = ''
+      return
+    }
+
     setUploading(true)
     try {
       const fd = new FormData()
@@ -37,9 +53,8 @@ export function ProfileForm({ firstName, avatarUrl }: ProfileFormProps) {
       const url = await uploadAvatar(fd)
       setAvatar(url)
       toast.success('Avatar updated')
-    } catch (err) {
+    } catch {
       toast.error('Avatar upload failed')
-      console.error(err)
     } finally {
       setUploading(false)
       if (fileInputRef.current) {
@@ -56,9 +71,8 @@ export function ProfileForm({ firstName, avatarUrl }: ProfileFormProps) {
         fd.append('avatar_url', avatar)
         await updateProfile(fd)
         toast.success('Profile saved')
-      } catch (err) {
+      } catch {
         toast.error('Failed to save profile')
-        console.error(err)
       }
     })
   }

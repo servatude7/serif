@@ -2,6 +2,7 @@ import { type EmailOtpType } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { type NextRequest } from 'next/server'
 
+import { subscribeCurrentUserToLoops } from '@/lib/actions/loops'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
@@ -19,6 +20,13 @@ export async function GET(request: NextRequest) {
       token_hash,
     })
     if (!error) {
+      // The mailing list is synced here rather than from the sign-up form so
+      // the address always comes from a verified session instead of a public
+      // request body.
+      if (type === 'signup' || type === 'invite') {
+        await subscribeCurrentUserToLoops()
+      }
+
       // redirect user to specified redirect URL or root of app
       redirect(next)
     } else {

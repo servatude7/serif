@@ -73,9 +73,10 @@ export async function createBlogWithAI(
     return { success: true, id }
   } catch (error) {
     if (NoObjectGeneratedError.isInstance(error)) {
+      // Deliberately not logging `error.response`: the raw provider response
+      // body would end up in the hosting logs.
       console.error('GPT-5.1 returned an invalid blog object', {
-        cause: error.cause,
-        response: error.response,
+        cause: error.cause instanceof Error ? error.cause.message : error.cause,
         usage: error.usage,
       })
     } else {
